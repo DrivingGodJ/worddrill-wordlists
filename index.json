@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "updated": "2026-11-27",
+  "distractors": "wordlists/distractors.json",
+  "wordlists": [
+    {
+      "id": "cet4",
+      "name": "大学英语四级（CET-4）",
+      "shortName": "四级词汇",
+      "tag": "CET4",
+      "description": "大学英语四级核心与高频词汇，含词性、中文释义、例句与搭配。",
+      "count": 4544,
+      "file": "wordlists/cet4.json"
+    },
+    {
+      "id": "cet6",
+      "name": "大学英语六级（CET-6）",
+      "shortName": "六级词汇",
+      "tag": "CET6",
+      "description": "大学英语六级核心与高频词汇，含词性、中文释义、例句与搭配。",
+      "count": 3992,
+      "file": "wordlists/cet6.json"
+    },
+    {
+      "id": "ielts",
+      "name": "雅思核心词汇（IELTS）",
+      "shortName": "雅思词汇",
+      "tag": "IELTS",
+      "description": "雅思高频核心词汇，含词性、中文释义、例句与搭配。",
+      "count": 5275,
+      "file": "wordlists/ielts.json"
+    }
+  ]
+}
