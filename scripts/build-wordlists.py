@@ -16,6 +16,8 @@ ROOT = Path(__file__).resolve().parent.parent
 CACHE_DIR = ROOT / '.cache-dict'
 WORDLISTS_DIR = ROOT / 'wordlists'
 DICT_REPO = 'kajweb/dict'
+FREQ_REPO = 'hermitdave/FrequencyWords'
+FREQ_PATH = 'content/2018/en/en_50k.txt'
 TODAY = datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
 BOOKS = [
@@ -110,7 +112,58 @@ def parse_zip(path: Path) -> list[dict]:
     return rows
 
 
-def to_entry(raw: dict, tag: str) -> tuple[int, dict] | None:
+def load_freq_ranks() -> dict[str, int]:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    path = CACHE_DIR / 'en-freq-50k.txt'
+    if not path.exists():
+        print('下载词频表 en_50k.txt...')
+        blob = json.loads(gh(f'repos/{FREQ_REPO}/contents/{FREQ_PATH}'))
+        path.write_bytes(base64.b64decode(blob['content']))
+    ranks = {}
+    for i, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+        parts = line.split()
+        if parts:
+            w = parts[0].lower()
+            if w not in ranks:
+                ranks[w] = i
+    return ranks
+
+
+def compute_freq_and_difficulty(head: str, meaning: str, freq_ranks: dict[str, int]) -> tuple[int | None, int]:
+    low = head.lower().strip()
+    rank = freq_ranks.get(low)
+    if rank is None and low.endswith('ly'):
+        candidates = [r for r in (freq_ranks.get(low[:-2]), freq_ranks.get(low[:-3] + 'y')) if r is not None]
+        if candidates:
+            rank = min(candidates)
+    if rank is not None:
+        if rank <= 3500:
+            diff = 1
+        elif rank <= 10000:
+            diff = 2
+        elif rank <= 22000:
+            diff = 3
+        elif rank <= 36000:
+            diff = 4
+        else:
+            diff = 5
+        return rank, diff
+
+    # 外词频表缺失时（多词短语或生僻词），按长度与义项复杂度做平滑分级
+    letters = len(re.sub(r'[^a-z]', '', low))
+    senses = len([s for s in re.split(r'[；;]', meaning) if s.strip()])
+    if ' ' in low or '-' in low:
+        diff = 3 if letters <= 12 else 4
+    elif letters <= 6 and senses <= 2:
+        diff = 3
+    elif letters <= 9:
+        diff = 4
+    else:
+        diff = 5
+    return None, diff
+
+
+def to_entry(raw: dict, tag: str, freq_ranks: dict[str, int]) -> tuple[int, dict] | None:
     head = (raw.get('headWord') or '').strip()
     if not head:
         return None
@@ -153,6 +206,7 @@ def to_entry(raw: dict, tag: str) -> tuple[int, dict] | None:
     ][:3]
     phonetic = (c.get('ukphone') or c.get('usphone') or '').strip()
 
+    freq_rank, diff = compute_freq_and_difficulty(head, meaning, freq_ranks)
     entry = {
         'id': wid,
         'word': head,
@@ -161,7 +215,10 @@ def to_entry(raw: dict, tag: str) -> tuple[int, dict] | None:
         'example': picked_sent['sContent'].strip() if picked_sent else '',
         'exampleZh': picked_sent['sCn'].strip() if picked_sent else '',
         'tags': [tag],
+        'difficulty': diff,
     }
+    if freq_rank is not None:
+        entry['freq'] = freq_rank
     if phrases:
         entry['collocations'] = phrases
     if phonetic:
@@ -178,6 +235,7 @@ def to_entry(raw: dict, tag: str) -> tuple[int, dict] | None:
 
 def main() -> None:
     WORDLISTS_DIR.mkdir(parents=True, exist_ok=True)
+    freq_ranks = load_freq_ranks()
     index_items = json.loads(gh(f'repos/{DICT_REPO}/contents/book'))
     catalog = []
     distractor_pool = {}
@@ -187,7 +245,7 @@ def main() -> None:
         best: dict[str, tuple[int, dict]] = {}
         for p in paths:
             for raw in parse_zip(p):
-                res = to_entry(raw, spec['tag'])
+                res = to_entry(raw, spec['tag'], freq_ranks)
                 if not res:
                     continue
                 q, entry = res
