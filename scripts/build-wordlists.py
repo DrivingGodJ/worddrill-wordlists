@@ -53,6 +53,45 @@ BOOKS = [
     },
 ]
 
+MIN_FREQ_RANK = 500
+ELEMENTARY_PATTERN = r'.*PEPXiaoXue.*\.zip$'
+EXTRA_BASIC_WORDS = {
+    'a', 'an', 'the', 'i', 'me', 'my', 'mine', 'you', 'your', 'yours', 'he', 'him', 'his',
+    'she', 'her', 'hers', 'it', 'its', 'we', 'us', 'our', 'ours', 'they', 'them', 'their', 'theirs',
+    'this', 'that', 'these', 'those', 'who', 'whom', 'whose', 'what', 'which', 'where', 'when', 'why', 'how',
+    'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'do', 'does', 'did', 'done',
+    'have', 'has', 'had', 'can', 'could', 'will', 'would', 'shall', 'should', 'may', 'might', 'must',
+    'and', 'or', 'but', 'if', 'so', 'as', 'at', 'by', 'for', 'from', 'in', 'into', 'of', 'off', 'on', 'onto',
+    'out', 'over', 'to', 'under', 'up', 'with', 'about', 'after', 'before', 'between', 'down', 'near',
+    'walk', 'run', 'jump', 'sit', 'stand', 'eat', 'drink', 'sleep', 'read', 'write', 'play', 'swim',
+    'fly', 'sing', 'dance', 'cook', 'wash', 'clean', 'open', 'close', 'push', 'pull', 'throw', 'catch',
+    'kick', 'hit', 'cut', 'draw', 'paint', 'laugh', 'cry', 'smile', 'go', 'come', 'see', 'look', 'watch',
+    'hear', 'listen', 'speak', 'talk', 'say', 'tell', 'ask', 'answer', 'buy', 'sell', 'give', 'take',
+    'cat', 'dog', 'bird', 'fish', 'pig', 'cow', 'duck', 'sheep', 'horse', 'chicken', 'mouse', 'rabbit',
+    'bear', 'lion', 'tiger', 'monkey', 'elephant', 'apple', 'banana', 'orange', 'pear', 'grape', 'peach',
+    'watermelon', 'bread', 'milk', 'egg', 'rice', 'noodle', 'cake', 'tea', 'coffee', 'juice', 'water',
+    'red', 'blue', 'green', 'yellow', 'white', 'black', 'pink', 'purple', 'brown', 'grey', 'gray',
+    'book', 'pen', 'pencil', 'ruler', 'eraser', 'bag', 'desk', 'chair', 'table', 'bed', 'sofa',
+    'door', 'window', 'wall', 'floor', 'room', 'house', 'home', 'school', 'class', 'teacher', 'student',
+    'friend', 'boy', 'girl', 'man', 'woman', 'baby', 'child', 'kid', 'father', 'dad', 'mother', 'mom', 'mum',
+    'brother', 'sister', 'son', 'daughter', 'uncle', 'aunt', 'sun', 'moon', 'star', 'sky', 'cloud',
+    'rain', 'snow', 'wind', 'tree', 'flower', 'grass', 'river', 'lake', 'sea', 'mountain', 'hill',
+    'road', 'street', 'car', 'bus', 'bike', 'bicycle', 'train', 'plane', 'boat', 'ship',
+    'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen',
+    'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety', 'hundred', 'thousand',
+    'first', 'second', 'third', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+    'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+    'spring', 'summer', 'autumn', 'winter', 'morning', 'afternoon', 'evening', 'night', 'today', 'tomorrow', 'yesterday',
+    'week', 'month', 'year', 'time', 'day', 'hour', 'minute', 'hello', 'hi', 'bye', 'goodbye',
+    'yes', 'no', 'not', 'ok', 'okay', 'please', 'sorry', 'thank', 'thanks', 'welcome',
+    'big', 'small', 'large', 'little', 'tall', 'short', 'long', 'fat', 'thin', 'old', 'young', 'new',
+    'good', 'bad', 'nice', 'fine', 'happy', 'sad', 'angry', 'hungry', 'thirsty', 'tired',
+    'hot', 'cold', 'warm', 'cool', 'fast', 'slow', 'high', 'low', 'easy', 'hard', 'dirty', 'quiet', 'loud',
+    'shirt', 'shoe', 'shoes', 'coat', 'hat', 'dress', 'skirt', 'pants', 'socks',
+    'head', 'hair', 'eye', 'ear', 'nose', 'mouth', 'tooth', 'teeth', 'face', 'neck', 'arm', 'hand', 'leg', 'foot', 'feet',
+}
+
 
 def gh(endpoint: str) -> str:
     p = subprocess.run(['gh', 'api', endpoint], capture_output=True, text=True)
@@ -163,7 +202,31 @@ def compute_freq_and_difficulty(head: str, meaning: str, freq_ranks: dict[str, i
     return None, diff
 
 
-def to_entry(raw: dict, tag: str, freq_ranks: dict[str, int]) -> tuple[int, dict] | None:
+def load_elementary_words(index_items: list[dict]) -> set[str]:
+    words = set(EXTRA_BASIC_WORDS)
+    paths = download_books(index_items, ELEMENTARY_PATTERN)
+    for p in paths:
+        for raw in parse_zip(p):
+            head = (raw.get('headWord') or '').strip().lower()
+            if head:
+                words.add(head)
+    print(f'小学/超基础排除词表：共 {len(words)} 个')
+    return words
+
+
+def is_ultra_basic(head: str, freq_rank: int | None, elementary_words: set[str]) -> bool:
+    low = head.lower().strip()
+    letters = re.sub(r'[^a-z]', '', low)
+    if len(letters) <= 1:
+        return True
+    if low in elementary_words:
+        return True
+    if freq_rank is not None and freq_rank <= MIN_FREQ_RANK:
+        return True
+    return False
+
+
+def to_entry(raw: dict, tag: str, freq_ranks: dict[str, int], elementary_words: set[str]) -> tuple[int, dict] | None:
     head = (raw.get('headWord') or '').strip()
     if not head:
         return None
@@ -207,6 +270,8 @@ def to_entry(raw: dict, tag: str, freq_ranks: dict[str, int]) -> tuple[int, dict
     phonetic = (c.get('ukphone') or c.get('usphone') or '').strip()
 
     freq_rank, diff = compute_freq_and_difficulty(head, meaning, freq_ranks)
+    if is_ultra_basic(head, freq_rank, elementary_words):
+        return None
     entry = {
         'id': wid,
         'word': head,
@@ -237,16 +302,19 @@ def main() -> None:
     WORDLISTS_DIR.mkdir(parents=True, exist_ok=True)
     freq_ranks = load_freq_ranks()
     index_items = json.loads(gh(f'repos/{DICT_REPO}/contents/book'))
+    elementary_words = load_elementary_words(index_items)
     catalog = []
     distractor_pool = {}
 
     for spec in BOOKS:
         paths = download_books(index_items, spec['pattern'])
         best: dict[str, tuple[int, dict]] = {}
+        skipped_basic = 0
         for p in paths:
             for raw in parse_zip(p):
-                res = to_entry(raw, spec['tag'], freq_ranks)
+                res = to_entry(raw, spec['tag'], freq_ranks, elementary_words)
                 if not res:
+                    skipped_basic += 1
                     continue
                 q, entry = res
                 prev = best.get(entry['id'])
@@ -267,7 +335,8 @@ def main() -> None:
             'words': words,
         }
         out_path.write_text(json.dumps(payload, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-        print(f"{spec['shortName']}: {len(words)} words -> {spec['file']} ({out_path.stat().st_size // 1024} KB)")
+        byte_size = out_path.stat().st_size
+        print(f"{spec['shortName']}: {len(words)} words (filtered {skipped_basic}) -> {spec['file']} ({byte_size // 1024} KB)")
 
         catalog.append({
             'id': spec['id'],
@@ -276,6 +345,7 @@ def main() -> None:
             'tag': spec['catalogTag'],
             'description': spec['description'],
             'count': len(words),
+            'bytes': byte_size,
             'file': spec['file'],
         })
 
@@ -304,12 +374,14 @@ def main() -> None:
         json.dumps({'words': selected_distractors[:900]}, ensure_ascii=False, separators=(',', ':')),
         encoding='utf-8',
     )
-    print(f"distractors: {len(selected_distractors[:900])} entries -> wordlists/distractors.json")
+    dist_bytes = dist_path.stat().st_size
+    print(f"distractors: {len(selected_distractors[:900])} entries -> wordlists/distractors.json ({dist_bytes // 1024} KB)")
 
     index_payload = {
         'version': 1,
         'updated': TODAY,
         'distractors': 'wordlists/distractors.json',
+        'distractorsBytes': dist_bytes,
         'wordlists': catalog,
     }
     (ROOT / 'index.json').write_text(json.dumps(index_payload, ensure_ascii=False, indent=2), encoding='utf-8')

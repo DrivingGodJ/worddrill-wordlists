@@ -1,7 +1,8 @@
 {
   "version": 1,
-  "updated": "2026-11-27",
+  "updated": "2026-11-28",
   "distractors": "wordlists/distractors.json",
+  "distractorsBytes": 65023,
   "wordlists": [
     {
       "id": "cet4",
@@ -9,7 +10,8 @@
       "shortName": "四级词汇",
       "tag": "默认拼写",
       "description": "大学英语四级核心与高频词汇，含词性、中文释义、例句与搭配。",
-      "count": 4544,
+      "count": 3952,
+      "bytes": 1492662,
       "file": "wordlists/cet4.json"
     },
     {
@@ -18,7 +20,8 @@
       "shortName": "六级词汇",
       "tag": "默认只认",
       "description": "大学英语六级核心与高频词汇，含词性、中文释义、例句与搭配。",
-      "count": 3992,
+      "count": 3920,
+      "bytes": 1449181,
       "file": "wordlists/cet6.json"
     },
     {
@@ -27,7 +30,8 @@
       "shortName": "雅思词汇",
       "tag": "默认拼写",
       "description": "雅思高频核心词汇，含词性、中文释义、例句与搭配。",
-      "count": 5275,
+      "count": 5175,
+      "bytes": 1863169,
       "file": "wordlists/ielts.json"
     }
   ]
